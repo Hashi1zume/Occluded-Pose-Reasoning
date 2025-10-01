@@ -1,3 +1,11 @@
+# Coding Agentの設定ファイルなど
 *.claude/
 *.serena/
 CLAUDE.md   
+AGENTS.md
+
+models/
+data/
+output/
+log/
+*.pth

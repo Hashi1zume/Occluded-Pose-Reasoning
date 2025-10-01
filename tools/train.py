@@ -309,17 +309,17 @@ def main():
             final_output_dir, tb_log_dir, writer_dict, 
             transformer=transformer, occlusion_mask_strategy=args.occlusion_mask_strategy)
         elif cfg.MODEL.COORD_REPRESENTATION == 'sa-simdr':
-            print('Please note you are not using visibility_branch, which means you use gt_visibility identity to train and inference.')
+            #print('Please note you are not using visibility_branch, which means you use gt_visibility identity to train and inference.')
             train_sa_simdr(cfg, train_loader, model, criterion, criterion_visibility, optimizer, lr_scheduler, epoch,
             final_output_dir, tb_log_dir, writer_dict, transformer=transformer,
-            output_layer=output_layer, visibility_branch=None, occlusion_mask_strategy=args.occlusion_mask_strategy)
+            output_layer=output_layer, visibility_branch=visibility_branch, occlusion_mask_strategy=args.occlusion_mask_strategy)
             
             # output_layer=output_layer, visibility_branch=visibility_branch)
             
             perf_indicator = validate_sa_simdr(
                 cfg, valid_loader, valid_dataset, model, criterion,
                 final_output_dir, tb_log_dir, writer_dict, transformer=transformer,
-                output_layer=output_layer, visibility_branch=None, occlusion_mask_strategy=args.occlusion_mask_strategy)
+                output_layer=output_layer, visibility_branch=visibility_branch, occlusion_mask_strategy=args.occlusion_mask_strategy)
                 # output_layer=output_layer, visibility_branch=visibility_branch)
         elif cfg.MODEL.COORD_REPRESENTATION == 'heatmap':
             train_heatmap(cfg, train_loader, model, criterion, optimizer, epoch,
