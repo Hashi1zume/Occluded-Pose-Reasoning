@@ -18,6 +18,10 @@ from pycocotools.cocoeval import COCOeval
 import json_tricks as json
 import numpy as np
 
+# numpy 2.0 互換: pycocotools が np.float を参照するため一時的に再定義する
+if not hasattr(np, 'float'):
+    np.float = float  # WHY: 外部ライブラリ修正を避け、このリポジトリ側で非推奨エイリアスを補う
+
 from dataset.JointsDataset import JointsDataset
 from nms.nms import oks_nms
 from nms.nms import soft_oks_nms
