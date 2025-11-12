@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import argparse
 import pprint
-from typing import Tuple, Union
+from typing import Callable, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -17,6 +17,52 @@ from fvcore.nn import FlopCountAnalysis, parameter_count
 import _init_paths  # noqa: F401
 from config import cfg, update_config
 import models
+
+
+def _get_tensor_numel(arg: Union[torch.Tensor, Tuple, list]) -> int:
+    """fvcore のカスタムハンドラ内で Tensor サイズを安全に取得するヘルパ."""
+    if isinstance(arg, torch.Tensor):
+        return int(arg.numel())
+    if isinstance(arg, (list, tuple)) and arg:
+        return _get_tensor_numel(arg[0])
+    return 0
+
+
+def _elemwise_flop(_inputs, outputs) -> int:
+    """add/mul/div など要素単位演算の FLOPs を出力要素数ベースで概算."""
+    if not outputs:
+        return 0
+    return _get_tensor_numel(outputs[0])
+
+
+def _softmax_flop(_inputs, outputs) -> int:
+    """softmax は exp + sum + div を含むため約 5 FLOPs/要素とみなす."""
+    if not outputs:
+        return 0
+    return 5 * _get_tensor_numel(outputs[0])
+
+
+def _silu_flop(_inputs, outputs) -> int:
+    """SiLU は sigmoid + mul 相当なので 4 FLOPs/要素で近似."""
+    if not outputs:
+        return 0
+    return 4 * _get_tensor_numel(outputs[0])
+
+
+def _zero_flop(*_args, **_kwargs) -> int:
+    """メタ演算 (lift_fresh など) は FLOPs 0 とみなす."""
+    return 0
+
+
+CUSTOM_FVCORE_HANDLES: dict[str, Callable[..., int]] = {
+    "aten::add": _elemwise_flop,
+    "aten::add_": _elemwise_flop,
+    "aten::mul": _elemwise_flop,
+    "aten::div": _elemwise_flop,
+    "aten::softmax": _softmax_flop,
+    "aten::silu": _silu_flop,
+    "aten::lift_fresh": _zero_flop,
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -131,6 +177,9 @@ def main():
 
     with torch.no_grad():
         flops_analyzer = FlopCountAnalysis(model, dummy)
+        # fvcore が未サポートの素朴演算を登録し、警告なしで厳密なカウントを得る
+        for op_name, handler in CUSTOM_FVCORE_HANDLES.items():
+            flops_analyzer.set_op_handle(op_name, handler)
         total_flops = flops_analyzer.total()
         params = parameter_count(model)['']
 
